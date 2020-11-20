@@ -60,7 +60,7 @@ public class HttpServletRequest implements ServletRequest {
 			String[] lines = line.split("\r\n");
 			parseFirstLine(lines[0]); // 解析第一行，即起始行
 			parseParamter(lines);
-		}  
+		} 
 	}
 
 	/**
@@ -103,12 +103,16 @@ public class HttpServletRequest implements ServletRequest {
 
 		if (ConstantInfo.REQUEST_METHOD_POST.equals(this.method)) { // 说明是post请求
 			// 先要获取到请求头协议中的Content-Length
-			int len = 0;
-
-			for (String head : header) {
-				if (head.contains("Content-Length: ")) { // 说明找到协议行  Content-Length: 200
-					len = Integer.parseInt(head.substring(head.indexOf(":") + 1).trim());
-					break;
+			int len = 0, index = 0;
+			str = "";
+			for (int i = 0, lens = header.length; i < lens; ++ i) {
+				str = header[i];
+				if (str.contains("Content-Length: ")) { // 说明找到协议行  Content-Length: 200
+					len = Integer.parseInt(str.substring(str.indexOf(":") + 1).trim());
+				}
+				
+				if ("".equals(str)) {
+					index = i;
 				}
 			}
 
@@ -118,21 +122,21 @@ public class HttpServletRequest implements ServletRequest {
 
 			// 如果有带参数，则我们需要先获取Content-Type，判断数据格式，我这里就不判断了，都当成字符串处理
 			try {
-				ByteBuffer buffer = ByteBuffer.allocate(BUFFERSIZE);
-
-				String line = "";
-				int total = 0, count = 0;
-				while ( (count = channel.read(buffer)) > 0 ) {
-					// 将缓冲区准备为数据传出状态 ，即将写模式转换成读模式
-					buffer.flip();
-
-					// 将字节转化为为UTF-8的字符串  
-					// line += new String(buffer.array(), 0, buffer.remaining(), "UTF-8");
-					line += Charset.forName("UTF-8").decode(buffer).toString(); 
-					total += count;
-					if (total >= len) { // 如果已读取的数据已经大于等于要接收到的数据，则退出
-						break;
-					}
+				if (index >= header.length) {
+					return;
+				}
+				StringBuffer sbf = new StringBuffer();
+				for (int i = index, lens = header.length; i < lens; ++ i) {
+					sbf.append(header[i]);
+				}
+				String line = sbf.toString();
+				
+				if (line.length() != len) {
+					return;
+				}
+				
+				if (line.length() > len) {
+					line = line.substring(0, len);
 				}
 				
 				String[] params = line.split("&");
